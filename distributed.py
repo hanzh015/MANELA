@@ -22,7 +22,7 @@ class Status(Enum):
 logger = logging.getLogger("distributed learning")
 class Distributed(object):
     '''
-    A distributed learning simulator
+    A distributed learning simulator with multi-threads
     '''
     
 
