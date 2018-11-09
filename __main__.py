@@ -17,7 +17,7 @@ def main():
     
     '''
     
-    G = graph.load_edgelist(file_="edges.csv")
+    G = graph.load_matfile(file_="D:/onedrive/FederatedLearning/Datasets/blogcatalog.mat")
     
     d = ds.Distributed(G)
     d.defaultArgs()

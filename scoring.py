@@ -69,7 +69,7 @@ def main():
 	mlb = MultiLabelBinarizer(range(labels_count))
 	
 	# Map nodes to their features (note:	assumes nodes are labeled as integers 1:N)
-	features_matrix = numpy.asarray([model[str(node+1)] for node in range(len(graph))])
+	features_matrix = numpy.asarray([model[str(node)] for node in range(len(graph))])
 	
 	# 2. Shuffle, to create train/test groups
 	shuffles = []

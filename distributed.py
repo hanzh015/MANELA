@@ -10,7 +10,9 @@ import numpy as np
 import scipy as sc
 import time
 import random
+import math
 from collections import defaultdict
+from numpy import int64
 
 class Status(Enum):
     INSTANTIATED = 0
@@ -66,15 +68,17 @@ class Distributed(object):
         @numNodes:    the number the vertices in the graph
         @outputPath: the output file path and name
         '''
-        self.distance = 1
+        self.distance = 2       #this is a fix variable in new version
         self.alpha = 0.025
-        self.numUpdates = 50
+        self.numUpdates = 100
         self.numNegSampling = 3
         self.maxNegLen = 10**8
         self.numThread = 4
-        self.representSize = 64
+        self.representSize = 128
         t = time.localtime(time.time())
-        self.outputPath = "{}{}{}{}{}{}".format(t[1],t[2],t[0],t[3],t[4],t[5]) + ".embeddings"
+        self.outputPath = "U={}_N={}_R={}_timestamp={}{}{}".format(
+            self.numUpdates,self.numNegSampling,self.representSize,
+            t[3],t[4],t[5]) + ".embeddings"
         #self.outputPath = "output.embeddings"
          
         self.initStorage()
@@ -92,7 +96,7 @@ class Distributed(object):
         self.alpha = alpha
         self.numUpdates = numUpdates
         self.numNegSampling = numNegSampling
-        self.maxNeglen = maxNeglen
+        self.maxNegLen = maxNeglen
         self.numThread = numThread
         self.representSize = representSize
         self.outputPath = outputPath
@@ -108,11 +112,8 @@ class Distributed(object):
         print("start allocating storages")
         self.repMatrix = defaultdict(np.array)
         for i in self.graph.keys():
-            self.repMatrix[i] = np.zeros(self.representSize)
-        #set initial value, following the method of gensim.models.Word2Vec
-        for j in self.repMatrix.keys():
-            for k in range(self.representSize):
-                self.repMatrix[j][k] = (random.random()-0.5)/self.representSize
+            self.repMatrix[i] = (np.random.ranf(self.representSize)-0.5)/self.representSize
+        
         t1 = time.time()
         print("finished setting initial values for representation matrix, time: {} min".format((t1-t0)/60))
         t0 = t1
@@ -130,21 +131,12 @@ class Distributed(object):
         self.negSampTable=[]
         for key, exp in self.expTable.items():
             d += exp/maxExpValue
-            while float(i)/self.maxNegLen < d:
-                self.negSampTable.append(key)
-                i = i+1
+            newi = math.floor(self.maxNegLen * d)
+            self.negSampTable.extend([key] * (newi - i + 1))
+            i = newi
             
         #setting a reference table which is involved in negative sampling
-        '''
-        for m in range(self.maxNegLen):
-            self.negSampTable.append(i)
-            if m/float(self.maxNegLen) > d:
-                i = i+1
-                d += self.expTable[l]/maxExpValue
-                l = l+1
-            if l>=self.numNodes:
-                l = self.numNodes-1
-        '''
+        
         
         t1 = time.time()
         print("finished setting initial values for negsampling table, time: {} min".format((t1-t0)/60))
@@ -153,32 +145,18 @@ class Distributed(object):
         #storage for adjacent table which records adjacent vertices within the distance for each vertex
         self.adjTable = defaultdict(list)
         #storage for the weights of adjacent table, for 2nd or 3rd degree neighbors who have lighter weights
-        self.weightTable = defaultdict(list)
         for key, vtx in self.graph.items():
-            adjlist=[]
-            weilist=[]
-            cur=0
-            for nds in vtx:
-                adjlist.append(nds)
+            adjlist = list(vtx)
             primelen = len(adjlist)
-            lastloc = cur
-            weilist.append([len(adjlist),1])        #the first element indicates the 1st location after nodes of this level
-            if self.distance>1:
-                for cn in range(1,self.distance):
-                    for pos in range(lastloc,len(adjlist)):
-                        adj = self.graph[adjlist[pos]]
-                        for nodes in adj:
-                            if nodes == key:
-                                continue
-                            if not nodes in adjlist:
-                                adjlist.append(nodes)
-                        cur = cur + 1
-                    if not len(adjlist) == cur:
-                        weilist.append([len(adjlist),float(primelen)/(len(adjlist)-cur)])
-                    lastloc = cur
+            seclist = []
+            for _ in range(primelen):
+                first = random.choice(adjlist)
+                second = random.choice(self.graph[first])
+                seclist.append(second)
+            adjlist.extend(seclist)
             self.adjTable[key] = adjlist
-            self.weightTable[key] = weilist
-            #print("finish, adjlen = {}".format(len(adjlist)))
+                
+           
         t1 = time.time()   
         print("finished setting initial values for adjacency table, time:{} min".format((t1-t0)/60))
     
@@ -205,34 +183,18 @@ class Distributed(object):
             if localalpha < self.alpha * 0.0001:
                 localalpha = self.alpha * 0.0001
             for centralNode in nodesSeq:
-                if not len(self.adjTable[centralNode]) == 0:
-                    level = 0  
-                    thredhold = self.weightTable[centralNode][level][0]
-                    wei = self.weightTable[centralNode][level][1]
-                    for index, friend in enumerate(self.adjTable[centralNode]):
-                        if index >= thredhold:
-                            level = level+1
-                            if level >= len(self.weightTable[centralNode]):
-                                level = len(self.weightTable[centralNode])-1
-                            thredhold = self.weightTable[centralNode][level][0]
-                            wei = self.weightTable[centralNode][level][1]
-                        #positive updating from nodes within the distance
-                        self.singleUpdate(centralNode, friend, localalpha, 0, wei)
+                for friend in self.adjTable[centralNode]:
+                    
+                    #positive updating from nodes within the distance
+                    self.singleUpdate(centralNode, friend, localalpha, 0, 1)
+                    
+                    #sampling enemies
+                    seeds = np.random.randint(low=np.iinfo(np.int64).max,size=self.numNegSampling,dtype=np.int64)
+                    seeds = seeds%self.maxNegLen
+                    for seed in seeds:
+                        enemy = self.negSampTable[seed]
+                        self.singleUpdate(centralNode,enemy,localalpha,1,1)
                         
-                        #sampling enemies
-                        maxint64 = 2**64-1
-                        k=0
-                        while True:
-                            seed = random.randrange(maxint64)
-                            enemy = self.negSampTable[seed%self.maxNegLen]
-                            if enemy == friend:
-                                continue
-                            else:
-                                k = k+1
-                            
-                            self.singleUpdate(centralNode,enemy,localalpha,1,wei)
-                            if k == 5:
-                                break
             logger.info("Finished the {} th updating".format(str(currentProgress)))
             currentProgress += 1
             self.printInProgress(float(currentProgress)*100/self.numUpdates, self.status)
@@ -247,7 +209,7 @@ class Distributed(object):
         @weight : the weight of the updating
         '''
         sigma = np.dot(self.repMatrix[center],self.repMatrix[target])
-        sigma = 1.0/(1 + np.exp(-sigma))
+        sigma = sc.special.expit(sigma)
         if mode == 0:
             g = alpha * (1-sigma) * self.repMatrix[target]
             self.repMatrix[center] += g * weight
@@ -284,7 +246,7 @@ class Distributed(object):
         @status    : the current status 
         '''
         if status == Status.INTRAINING:
-            print("Training in progress, {}%\n".format(percentage))
+            print("Training in progress, {}%".format(percentage))
         else:
             if status == Status.INSTANTIATED:
                 print("object has just been instantiated, please set parameters before training\n")
