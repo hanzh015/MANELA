@@ -147,6 +147,7 @@ class Distributed(object):
         #storage for the weights of adjacent table, for 2nd or 3rd degree neighbors who have lighter weights
         for key, vtx in self.graph.items():
             adjlist = list(vtx)
+            '''
             primelen = len(adjlist)
             seclist = []
             for _ in range(primelen):
@@ -154,6 +155,7 @@ class Distributed(object):
                 second = random.choice(self.graph[first])
                 seclist.append(second)
             adjlist.extend(seclist)
+            '''
             self.adjTable[key] = adjlist
                 
            
@@ -183,18 +185,29 @@ class Distributed(object):
             if localalpha < self.alpha * 0.0001:
                 localalpha = self.alpha * 0.0001
             for centralNode in nodesSeq:
+                #random sample 2nd degree neighbors with the same quantity
+                primelen = len(self.adjTable[centralNode])
+                seclist = []
+                for _ in range(primelen):
+                    first = random.choice(self.adjTable[centralNode])
+                    second = random.choice(self.graph[first])
+                    seclist.append(second)
+                self.adjTable[centralNode].extend(seclist)
+                
+                #updating by each agent
                 for friend in self.adjTable[centralNode]:
-                    
                     #positive updating from nodes within the distance
                     self.singleUpdate(centralNode, friend, localalpha, 0, 1)
                     
-                    #sampling enemies
+                    #sampling enemies and negative updating
                     seeds = np.random.randint(low=np.iinfo(np.int64).max,size=self.numNegSampling,dtype=np.int64)
                     seeds = seeds%self.maxNegLen
                     for seed in seeds:
                         enemy = self.negSampTable[seed]
                         self.singleUpdate(centralNode,enemy,localalpha,1,1)
                         
+                #resume the original neighbors       
+                self.adjTable[centralNode] = self.adjTable[centralNode][:primelen]       
             logger.info("Finished the {} th updating".format(str(currentProgress)))
             currentProgress += 1
             self.printInProgress(float(currentProgress)*100/self.numUpdates, self.status)
