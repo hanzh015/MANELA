@@ -2,7 +2,7 @@
 
 """scoring.py: Script that demonstrates the multi-label classification used."""
 
-__author__			= "Bryan Perozzi"
+__author__			= "Bryan Perozzi" + "Han Zhang"
 
 import numpy
 import sys
@@ -51,6 +51,7 @@ def main():
 	parser.add_argument("--all", default=False, action='store_true',
 											help='The embeddings are evaluated on all training percents from 10 to 90 when this flag is set to true. '
 											'By default, only training percents of 10, 50 and 90 are used.')
+	parser.add_argument("--result", required=True, help="Result file")
 
 	args = parser.parse_args()
 	# 0. Files
@@ -111,7 +112,7 @@ def main():
 			for i, j in zip(cy.row, cy.col):
 					y_test[i].append(j)
 	
-			clf = TopKRanker(LogisticRegression())
+			clf = TopKRanker(LogisticRegression(solver='liblinear'))
 			clf.fit(X_train, y_train_)
 	
 			# find out how many labels should be predicted
@@ -125,20 +126,30 @@ def main():
 	
 			all_results[train_percent].append(results)
 	
-	print ('Results, using embeddings of dimensionality', X.shape[1])
-	print ('-------------------')
-	for train_percent in sorted(all_results.keys()):
-		print ('Train percent:', train_percent)
-		for index, result in enumerate(all_results[train_percent]):
-			print ('Shuffle #%d:	 ' % (index + 1), result)
-		avg_score = defaultdict(float)
-		for score_dict in all_results[train_percent]:
-			for metric, score in iteritems(score_dict):
-				avg_score[metric] += score
-		for metric in avg_score:
-			avg_score[metric] /= len(all_results[train_percent])
-		print ('Average score:', dict(avg_score))
+	try:
+		file = open(args.result,'w')
+		file.write('Results, using embeddings of dimensionality'+str(X.shape[1])+'\n')
+		file.write('-------------------\n')
+		print ('Results, using embeddings of dimensionality', X.shape[1])
 		print ('-------------------')
+		for train_percent in sorted(all_results.keys()):
+			print ('Train percent:', train_percent)
+			file.write('Train percent:'+str(train_percent)+'\n')
+			for index, result in enumerate(all_results[train_percent]):
+				print ('Shuffle #%d:	 ' % (index + 1), result)
+				file.write('Shuffle #{}:     '.format(index+1)+str(result)+'\n')
+			avg_score = defaultdict(float)
+			for score_dict in all_results[train_percent]:
+				for metric, score in iteritems(score_dict):
+					avg_score[metric] += score
+			for metric in avg_score:
+				avg_score[metric] /= len(all_results[train_percent])
+			print ('Average score:', dict(avg_score))
+			file.write('Average score:' + str(dict(avg_score))+'\n')
+			print ('-------------------')
+			file.write('-------------------\n')
+	finally:
+		file.close()
 
 if __name__ == "__main__":
 	sys.exit(main())

@@ -147,18 +147,8 @@ class Distributed(object):
         #storage for the weights of adjacent table, for 2nd or 3rd degree neighbors who have lighter weights
         for key, vtx in self.graph.items():
             adjlist = list(vtx)
-            '''
-            primelen = len(adjlist)
-            seclist = []
-            for _ in range(primelen):
-                first = random.choice(adjlist)
-                second = random.choice(self.graph[first])
-                seclist.append(second)
-            adjlist.extend(seclist)
-            '''
             self.adjTable[key] = adjlist
-                
-           
+                  
         t1 = time.time()   
         print("finished setting initial values for adjacency table, time:{} min".format((t1-t0)/60))
     
