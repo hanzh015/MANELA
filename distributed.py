@@ -2,6 +2,8 @@
 Created on 2018/10/27
 
 @author: Han Zhang
+
+The main class for distributed network embeddings learning algorithm.
 '''
 import logging
 from enum import Enum
@@ -48,7 +50,10 @@ class Distributed(object):
         
         self.status = Status.INTRAINING
         logger.info("Start Training\n")
-        self.trainingThread()
+        if self.poisson is not True:
+            self.trainingThread()
+        else:
+            self.poissonTraining()
         
     
     
@@ -58,8 +63,6 @@ class Distributed(object):
         2. initializing the adjacent lists to store neighboring vertices,
         call the method graph.extent(distance), using BFS
         parameters:
-        @distance:  the distance between the vertex that is being updated and the target vertex.
-        This parameter plays the same role of the window in Skipgram
         @alpha:     the initial learning rate, may be self-adjusted in learning progress
         @numUpdates: the total number of a simple synchronized updating
         @numNegSampling: the number of samples when doing negative sampling
@@ -68,15 +71,20 @@ class Distributed(object):
         @numNodes:    the number the vertices in the graph
         @outputPath: the output file path and name
         '''
-        self.distance = 2       #this is a fix variable in new version
         self.alpha = 0.025
         self.numUpdates = 100
         self.numNegSampling = 3
         self.maxNegLen = 10**8
-        self.numThread = 4
         self.representSize = 128
+        self.ratio = 0.5
+        self.fmax = 1
+        self.continued = False
+        self.poisson = False
+        self.window = 10
+        self.timeslot = 1000
+        self.cpath=""
         t = time.localtime(time.time())
-        self.outputPath = "U={}_N={}_R={}_timestamp={}{}{}".format(
+        self.outputPath = "examples\\embeddings\\U={}_N={}_R={}_timestamp={}{}{}".format(
             self.numUpdates,self.numNegSampling,self.representSize,
             t[3],t[4],t[5]) + ".embeddings"
         #self.outputPath = "output.embeddings"
@@ -87,19 +95,25 @@ class Distributed(object):
         logger.info("Set parameters by default")
         self.printInProgress(status=self.status)
         
-    def setArgs(self,distance,alpha,numUpdates,numNegSampling,
-                maxNeglen,numThread,representSize,outputPath):
+    def setArgs(self,alpha=0.025,numUpdates=100,numNegSampling=5,
+                maxNeglen=10**8,representSize=128,outputPath='examples\\embeddings\\tempemb.embeddings',
+                ratio=0.2,fmax=1,c=False,cpath='',poisson=True,window=10,timeslot=1000):
         '''
         set the parameters of the training process
         '''
-        self.distance = distance
         self.alpha = alpha
         self.numUpdates = numUpdates
         self.numNegSampling = numNegSampling
         self.maxNegLen = maxNeglen
-        self.numThread = numThread
         self.representSize = representSize
         self.outputPath = outputPath
+        self.ratio = ratio
+        self.fmax = fmax
+        self.continued = c
+        self.poisson = poisson
+        self.cpath = cpath
+        self.window = window
+        self.timeslot =  timeslot
         
         self.initStorage()
         self.status = Status.INITIALIZED
@@ -111,8 +125,14 @@ class Distributed(object):
         t0 = time.time()
         print("start allocating storages")
         self.repMatrix = defaultdict(np.array)
-        for i in self.graph.keys():
-            self.repMatrix[i] = (np.random.ranf(self.representSize)-0.5)/self.representSize
+        if not self.continued:
+            for i in self.graph.keys():
+                self.repMatrix[i] = (np.random.ranf(self.representSize)-0.5)/self.representSize
+        else:
+            print("continued training")
+            matrix = np.loadtxt(self.cpath,delimiter=" ",skiprows=1,usecols=range(self.representSize+1))
+            for i in range(len(self.graph)):
+                self.repMatrix[int(matrix[i][0])] = matrix[i][1:]
         
         t1 = time.time()
         print("finished setting initial values for representation matrix, time: {} min".format((t1-t0)/60))
@@ -166,6 +186,13 @@ class Distributed(object):
         gensim.model.Word2Vec), fixed distance (window size)
         '''
         currentProgress = 0
+        fratio = (self.ratio/0.5)*self.fmax 
+        sratio = (2-self.ratio/0.5)*self.fmax
+        if fratio>1:
+            fover=fratio-1
+            fratio=1
+        else:
+            fover = 0
         while currentProgress < self.numUpdates:
             localalpha = self.alpha
             nodesSeq = list(self.graph.keys())
@@ -177,15 +204,31 @@ class Distributed(object):
             for centralNode in nodesSeq:
                 #random sample 2nd degree neighbors with the same quantity
                 primelen = len(self.adjTable[centralNode])
-                seclist = []
+                #seclist = []
+                seclist = [random.choice(self.graph[
+                    random.choice(self.adjTable[centralNode])
+                    ]) for _ in range(int(primelen*sratio))]
+                '''
                 for _ in range(primelen):
                     first = random.choice(self.adjTable[centralNode])
                     second = random.choice(self.graph[first])
                     seclist.append(second)
-                self.adjTable[centralNode].extend(seclist)
+                '''
+                #self.adjTable[centralNode].extend(seclist)
                 
                 #updating by each agent
-                for friend in self.adjTable[centralNode]:
+                for friend in random.sample(self.adjTable[centralNode],int(primelen*fratio))+random.sample(self.adjTable[centralNode],int(primelen*fover)):
+                    #positive updating from nodes within the distance
+                    self.singleUpdate(centralNode, friend, localalpha, 0, 1)
+                    
+                    #sampling enemies and negative updating
+                    seeds = np.random.randint(low=np.iinfo(np.int64).max,size=self.numNegSampling,dtype=np.int64)
+                    seeds = seeds%self.maxNegLen
+                    for seed in seeds:
+                        enemy = self.negSampTable[seed]
+                        self.singleUpdate(centralNode,enemy,localalpha,1, 1)
+                        
+                for friend in seclist:
                     #positive updating from nodes within the distance
                     self.singleUpdate(centralNode, friend, localalpha, 0, 1)
                     
@@ -197,7 +240,7 @@ class Distributed(object):
                         self.singleUpdate(centralNode,enemy,localalpha,1,1)
                         
                 #resume the original neighbors       
-                self.adjTable[centralNode] = self.adjTable[centralNode][:primelen]       
+                #self.adjTable[centralNode] = self.adjTable[centralNode][:primelen]       
             logger.info("Finished the {} th updating".format(str(currentProgress)))
             currentProgress += 1
             self.printInProgress(float(currentProgress)*100/self.numUpdates, self.status)
@@ -257,11 +300,95 @@ class Distributed(object):
                 print("ready to train the model\n")
             if status == Status.FILESAVED:
                 print("Created target file ./{}\n".format(self.outputPath))
-
+                
     
+    '''
+    Update 18/12/2018
+    Author: Han Zhang
+    Change Updating sequence to poisson processes, where each agent has different updating rate. 
+    These updates happen concurrently
+    '''
     
+    def generatePoisson(self):
+        '''
+        this method is used for simulate a more realistic updating situation
+        a stronger assumption here is that we know the information of average degree
+        '''
+        print("Simulating update sequence...")
+        #1. calculate updating rates of each node
+        coefficient = self.numUpdates / (self.window * self.timeslot)
+        seq = []
+        #2.simulate poisson process in every timeslot for each node
+        history = {key:np.random.poisson(coefficient*len(self.graph[key]),self.timeslot) for key in self.graph.keys()}
+        #3.calculate final sequence
+        for i in range(self.timeslot):
+            slot = []
+            for key,value in history.items():
+                for _ in range(value[i]):
+                    slot.append(key)
+            random.shuffle(slot)
+            seq.extend(slot)
+        
+        return seq
     
-    
+    def poissonTraining(self):
+        '''
+        a different training thread, using with generatePoisson
+        '''
+        seq = self.generatePoisson()
+        
+        pathlen = len(seq)
+        process = 0
+        sentinel = 0
+        alpha = self.alpha
+        
+        for node in seq:
+            if process>=sentinel:
+                print("training in progress:{}".format(int(100*sentinel/pathlen)))
+                alpha = self.alpha * (1-process/float(pathlen))
+                if alpha < self.alpha * 0.0001:
+                    alpha = self.alpha * 0.0001
+                sentinel += pathlen /(float(self.numUpdates))
+            
+            primelen = len(self.graph[node])
+            if self.window*2*self.ratio >primelen:
+                repeat = int(self.window*2*self.ratio/primelen)
+                s = int(self.window*2*self.ratio)%primelen
+                flist =  random.sample(self.graph[node],s)
+                for _ in range(repeat):
+                    flist += self.graph[node]
+            else:
+                flist = random.sample(self.graph[node],int(self.window*2*self.ratio))
+                
+            seclist = [random.choice(self.graph[random.choice(self.graph[node])])
+                        for _ in range(int(self.window*2*(1-self.ratio)))]
+            
+            for friend in flist+seclist:
+                self.singleUpdate(node, friend, alpha, 0, 1)
+                
+                #negative sampling
+                seeds = np.random.randint(low=np.iinfo(np.int64).max,size=self.numNegSampling,dtype=np.int64)
+                seeds = seeds%self.maxNegLen
+                for seed in seeds:
+                    enemy = self.negSampTable[seed]
+                    self.singleUpdate(node,enemy,alpha,1,1)
+            
+            process += 1
+            
+            
+    '''
+    updated: Dec 25th,2018, Author: Han Zhang
+    add functions to output embeddings as numpy matrix
+    '''
+    def getEmbeddings(self):
+        node_num = len(self.repMatrix)
+        
+        emb_matrix = np.zeros((node_num,self.representSize))
+        for node in range(node_num):
+            emb_matrix[node] = self.repMatrix[node]
+        
+        return emb_matrix
+                    
     
     
     

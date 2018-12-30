@@ -3,6 +3,10 @@
 
 """Graph utilities."""
 
+"""
+Updated by Han Zhang for DNELA project
+"""
+
 import logging
 import sys
 from io import open
@@ -17,23 +21,34 @@ from random import shuffle
 from itertools import product,permutations
 from scipy.io import loadmat
 from scipy.sparse import issparse
+from numpy import random as rd
+from numpy import arange as ar
+import copy
 
 logger = logging.getLogger("deepwalk")
 
 
-__author__ = "Bryan Perozzi"
+__author__ = "Bryan Perozzi" + "Han Zhang"
 __email__ = "bperozzi@cs.stonybrook.edu"
 
 LOGFORMAT = "%(asctime).19s %(levelname)s %(filename)s: %(lineno)s %(message)s"
 
 class Graph(defaultdict):
 	"""Efficient basic implementation of nx `Graph' â€“ Undirected graphs with self loops"""	
-	def __init__(self):
-		super(Graph, self).__init__(list)
+	def __init__(self,*args):
+		"""
+		Update: add constructor function so that we can use copy method of defaultdict
+		Author: Han Zhang
+		"""
+		if args:
+			super(Graph,self).__init__(*args)
+		else:
+			super(Graph, self).__init__(list)
 
 	def nodes(self):
 		return self.keys()
-
+	
+	
 	def adjacency_iter(self):
 		return self.iteritems()
 
@@ -118,6 +133,24 @@ class Graph(defaultdict):
 	def number_of_nodes(self):
 		"Returns the number of nodes in the graph"
 		return self.order()
+	
+	def is_connected(self):
+		'''
+		Update: return whether the graph is connected
+		Author: Han Zhang
+		'''
+		flags = [1]*self.order()
+		visit = []
+		visit.append(0)
+		while visit:
+			for nodes in self[visit.pop(0)]:
+				if flags[nodes]==1:
+					visit.append(nodes)
+					flags[nodes]=0
+		
+		
+		return sum(flags)==0
+	
 
 	def random_walk(self, path_length, alpha=0, rand=random.Random(), start=None):
 		""" Returns a truncated random walk.
@@ -310,4 +343,100 @@ def from_adjlist_unchecked(adjlist):
 				G[node] = neighbors
 
 		return G
+
+
+
+'''
+Updated on Dec 24th 2018, Auther : Han Zhang
+adding utils to facilitate evaluations
+we assume the graph is always undirected in this case,
+so the following methods only consider undirected case
+'''
+def re_label_nodes(G,dictionary):
+	'''
+	relabel the nodes using the passing dictionary
+	'''
+	newgraph = Graph()
+	
+	for key,value in dictionary.items():
+		neighbors = []
+		for nodes in G[key]:
+			if nodes in dictionary:
+				neighbors.append(dictionary[nodes])
+			else:
+				pass
+		newgraph[value] = neighbors
+		
+	return newgraph
+	
+
+
+def weak_connected_components(G):
+	'''
+	return a list of connected components, each of them is a graph
+	repeatedly running BST 
+	'''
+	graphset=[]
+	original = list(G.keys())
+	flags = [1]*len(G)
+	
+	while(len(original)!=0):
+		component = Graph()
+		q = [original[0]]
+		flags[q[0]]=0
+		component[q[0]]=G[q[0]].copy()
+		original.remove(q[0])
+		while q:
+			root = q.pop(0)
+			for node in G[root]:
+				if flags[node]!=0:
+					q.append(node)
+					flags[node]=0
+					component[node]=G[node]
+					original.remove(node)
+				else:
+					pass
+		graphset.append(component)
+		
+	return graphset
+	
+
+def graph_splitter(G, train_ratio):
+	'''
+	split the graph to train and test
+	'''
+	train_set = copy.deepcopy(G)
+	test_set = copy.deepcopy(G)
+	for v_i in range(len(G)):
+		for v_j in G[v_i]:
+			if v_j<v_i:
+				pass
+			else:
+				if rd.uniform() > train_ratio:
+					train_set[v_i].remove(v_j)
+					train_set[v_j].remove(v_i)
+				else:
+					test_set[v_i].remove(v_j)
+					test_set[v_j].remove(v_i)
+	
+	return train_set,test_set
+
+def sample_graph(G,sample_nodes):
+	node_num = G.order()
+	if sample_nodes < node_num:
+		node_l = random.sample(list(G.keys()),sample_nodes)
+		node_l = sorted(node_l)
+		node_inv = {v:k  for k,v in enumerate(node_l)}
+		newgraph = Graph()
+		for node in range(len(node_l)):
+			newgraph[node]=[]
+			for old in G[node_l[node]]:
+				try:
+					newgraph[node].append(node_inv[old])
+				except:
+					continue
+		return newgraph,node_l
+	else:
+		#sample nodes larger than # of graph nodes
+		return copy.deepcopy(G), ar(node_num)
 
