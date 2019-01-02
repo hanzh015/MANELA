@@ -7,6 +7,8 @@ import graph
 import distributed as ds
 from gensim.models import Word2Vec
 from numpy import zeros
+import baseline.node2vec.node2vec as n2v
+import networkx as nx
 
 def evaluatePrediction(ori_graph,emb_name='dnela',train_ratio=0.8,sample_nodes=None):
     #1. split the original graph to train and test. Remove edges from original graph 
@@ -41,6 +43,22 @@ def evaluatePrediction(ori_graph,emb_name='dnela',train_ratio=0.8,sample_nodes=N
         for key in range(node_num):
             emb_matrix[key] = model.wv.get_vector(str(key))
         
+    elif emb_name=='node2vec':
+        #1. transform graph format from graph to nx.Graph()
+        ngraph = nx.Graph()
+        for key, value in train_graph.items():
+            for adj in value:
+                ngraph.add_edge(key,adj,weight=1)
+        ngraph.to_undirected()
+        G = n2v.Graph(ngraph,False,1,1)
+        G.preprocess_transition_probs()
+        walks = G.simulate_walks(10, 80)
+        walks = [list(map(str,walk)) for walk in walks]
+        model = Word2Vec(walks,size=128,window=10,min_count=0,sg=1,hs=0,negative=5,workers=4,iter=1)
+        emb_matrix = zeros((node_num,128))
+        for key in range(node_num):
+            emb_matrix[key] = model.wv.get_vector(str(key))
+    
     else:
         pass
     
@@ -66,11 +84,11 @@ def evaluatePrediction(ori_graph,emb_name='dnela',train_ratio=0.8,sample_nodes=N
 
 def main():
     num_shuffle = 1
-    report_file_name = 'link_pred_deepwalk.txt'
+    report_file_name = 'examples\\results\\link_pred_node2vec.txt'
     graph_name = 'examples\\datasets\\Homo_sapiens.mat'
     ori_graph = graph.load_matfile(file_=graph_name)
     ori_graph.make_undirected()
-    emb_name = 'deepwalk'
+    emb_name = 'node2vec'
     train_ratio = 0.8
     sample_node = 1024
     map_round = [None]*num_shuffle
