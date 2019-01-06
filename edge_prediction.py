@@ -9,6 +9,7 @@ from gensim.models import Word2Vec
 from numpy import zeros
 import baseline.node2vec.node2vec as n2v
 import networkx as nx
+import copy
 
 def evaluatePrediction(ori_graph,emb_name='dnela',train_ratio=0.8,sample_nodes=None):
     #1. split the original graph to train and test. Remove edges from original graph 
@@ -65,12 +66,19 @@ def evaluatePrediction(ori_graph,emb_name='dnela',train_ratio=0.8,sample_nodes=N
     #3. sample some nodes for validation
     if sample_nodes:
         if sample_nodes<node_num:
+            if emb_name=='common_neighbors':
+                ori_test_graph = copy.deepcopy(test_graph)
             test_graph,node_l = graph.sample_graph(test_graph, sample_nodes)
-            emb_matrix = emb_matrix[node_l]
+            if emb_name=='dnela' or emb_name=='deepwalk' or emb_name=='node2vec':
+                emb_matrix = emb_matrix[node_l]
+                
             
     #4. construct node weights from embeddings
-    adj_matrix = eu.get_recontructed_adj(emb_matrix)
-    result_pair_list = eu.get_edge_list_from_adj(adj_matrix)
+    if emb_name=='common_neighbors':
+        result_pair_list = eu.get_edge_list_from_cn(node_l, ori_test_graph)
+    else:
+        adj_matrix = eu.get_recontructed_adj(emb_matrix)
+        result_pair_list = eu.get_edge_list_from_adj(adj_matrix)
     #filter the result edge list from those appeared in train_graph
     #NOTE: THIS STEP IS IMPORTANT SINCE train_set HERE IS COMPLETE, NOT SAMPLED WHILE test_graph
     #IS SAMPLED SO THEY HAVE DIFFRENT LABELS. THIS DICTIONARY IS FOR NODE TRANSLATION
@@ -84,11 +92,11 @@ def evaluatePrediction(ori_graph,emb_name='dnela',train_ratio=0.8,sample_nodes=N
 
 def main():
     num_shuffle = 1
-    report_file_name = 'examples\\results\\link_pred_node2vec.txt'
+    report_file_name = 'examples\\results\\link_pred_common_neighbors.txt'
     graph_name = 'examples\\datasets\\Homo_sapiens.mat'
     ori_graph = graph.load_matfile(file_=graph_name)
     ori_graph.make_undirected()
-    emb_name = 'node2vec'
+    emb_name = 'common_neighbors'
     train_ratio = 0.8
     sample_node = 1024
     map_round = [None]*num_shuffle

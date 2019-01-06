@@ -33,6 +33,23 @@ def get_edge_list_from_adj(adj, threshold=0.0, edge_pairs=None):
     
     return result
 
+def get_edge_list_from_cn(node_l, ori_graph, threshold=0.0):
+    #construct the score table
+    result = []
+    for v_i in range(len(node_l)):
+        for v_j in range(len(node_l)):
+            if v_i >= v_j:
+                continue
+            else:
+                node_i = node_l[v_i]
+                node_j = node_l[v_j]
+                union_neighbors = ori_graph[node_i]+ori_graph[node_j]
+                common_number = len(ori_graph[node_i]+ori_graph[node_j])-len(sorted(set(union_neighbors)))
+                if common_number > threshold:
+                    result.append((v_i,v_j,common_number))
+    
+    return result
+
 def compute_precision_curves(predicted_edge_list, true_graph, max_k=-1):
     if max_k==-1:
         max_k = len(predicted_edge_list)
