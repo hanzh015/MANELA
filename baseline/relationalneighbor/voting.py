@@ -1,3 +1,5 @@
+import numpy
+from collections import defaultdict
 def rnPredict(x_fix,x_iter,label_fix,label_iter,graph):
 	'''
 	RN baseline method for node prediction task
