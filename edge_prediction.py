@@ -96,6 +96,7 @@ def main():
     graph_name = 'examples\\datasets\\Homo_sapiens.mat'
     ori_graph = graph.load_matfile(file_=graph_name)
     ori_graph.make_undirected()
+    ori_graph.make_consistent()
     emb_name = 'common_neighbors'
     train_ratio = 0.8
     sample_node = 1024

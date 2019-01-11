@@ -100,7 +100,7 @@ def main():
 	baseline_results = defaultdict(list)
 	
 	if args.all:
-		training_percents = numpy.asarray(range(5, 10)) * .1
+		training_percents = numpy.asarray(range(1, 10)) * .1
 	else:
 		training_percents = [0.1, 0.5, 0.9]
 	for train_percent in training_percents:

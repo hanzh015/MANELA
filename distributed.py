@@ -14,7 +14,6 @@ import time
 import random
 import math
 from collections import defaultdict
-from numpy import int64
 
 class Status(Enum):
     INSTANTIATED = 0
@@ -83,6 +82,8 @@ class Distributed(object):
         self.window = 10
         self.timeslot = 1000
         self.cpath=""
+        self.rd = np.random.RandomState(seed=1)
+        
         t = time.localtime(time.time())
         self.outputPath = "examples\\embeddings\\U={}_N={}_R={}_timestamp={}{}{}".format(
             self.numUpdates,self.numNegSampling,self.representSize,
@@ -97,7 +98,7 @@ class Distributed(object):
         
     def setArgs(self,alpha=0.025,numUpdates=100,numNegSampling=5,
                 maxNeglen=10**8,representSize=128,outputPath='examples\\embeddings\\tempemb.embeddings',
-                ratio=0.2,fmax=1,c=False,cpath='',poisson=True,window=10,timeslot=1000):
+                ratio=0.2,fmax=1,c=False,cpath='',poisson=True,window=10,timeslot=1000,seed=1):
         '''
         set the parameters of the training process
         '''
@@ -114,6 +115,7 @@ class Distributed(object):
         self.cpath = cpath
         self.window = window
         self.timeslot =  timeslot
+        self.rd = np.random.RandomState(seed=seed)
         
         self.initStorage()
         self.status = Status.INITIALIZED
@@ -127,7 +129,7 @@ class Distributed(object):
         self.repMatrix = defaultdict(np.array)
         if not self.continued:
             for i in self.graph.keys():
-                self.repMatrix[i] = (np.random.ranf(self.representSize)-0.5)/self.representSize
+                self.repMatrix[i] = (self.rd.rand(self.representSize)-0.5)/self.representSize
         else:
             print("continued training")
             matrix = np.loadtxt(self.cpath,delimiter=" ",skiprows=1,usecols=range(self.representSize+1))
@@ -196,7 +198,7 @@ class Distributed(object):
         while currentProgress < self.numUpdates:
             localalpha = self.alpha
             nodesSeq = list(self.graph.keys())
-            random.shuffle(nodesSeq)
+            self.rd.shuffle(nodesSeq)
             #adjust local alpha wait to code
             localalpha = self.alpha * (1 - float(currentProgress)/self.numUpdates)
             if localalpha < self.alpha * 0.0001:
@@ -205,8 +207,8 @@ class Distributed(object):
                 #random sample 2nd degree neighbors with the same quantity
                 primelen = len(self.adjTable[centralNode])
                 #seclist = []
-                seclist = [random.choice(self.graph[
-                    random.choice(self.adjTable[centralNode])
+                seclist = [self.rd.choice(self.graph[
+                    self.rd.choice(self.adjTable[centralNode])
                     ]) for _ in range(int(primelen*sratio))]
                 '''
                 for _ in range(primelen):
@@ -217,12 +219,13 @@ class Distributed(object):
                 #self.adjTable[centralNode].extend(seclist)
                 
                 #updating by each agent
-                for friend in random.sample(self.adjTable[centralNode],int(primelen*fratio))+random.sample(self.adjTable[centralNode],int(primelen*fover)):
+                for friend in list(self.rd.choice(self.adjTable[centralNode],int(primelen*fratio),False))+list(
+                    self.rd.sample(self.adjTable[centralNode],int(primelen*fover),False)):
                     #positive updating from nodes within the distance
                     self.singleUpdate(centralNode, friend, localalpha, 0, 1)
                     
                     #sampling enemies and negative updating
-                    seeds = np.random.randint(low=np.iinfo(np.int64).max,size=self.numNegSampling,dtype=np.int64)
+                    seeds = self.rd.randint(low=np.iinfo(np.int64).max,size=self.numNegSampling,dtype=np.int64)
                     seeds = seeds%self.maxNegLen
                     for seed in seeds:
                         enemy = self.negSampTable[seed]
@@ -233,7 +236,7 @@ class Distributed(object):
                     self.singleUpdate(centralNode, friend, localalpha, 0, 1)
                     
                     #sampling enemies and negative updating
-                    seeds = np.random.randint(low=np.iinfo(np.int64).max,size=self.numNegSampling,dtype=np.int64)
+                    seeds = self.rd.randint(low=np.iinfo(np.int64).max,size=self.numNegSampling,dtype=np.int64)
                     seeds = seeds%self.maxNegLen
                     for seed in seeds:
                         enemy = self.negSampTable[seed]
@@ -254,16 +257,17 @@ class Distributed(object):
         @mode   : 1 means negative updating while 0 means positive updating
         @weight : the weight of the updating
         '''
-        sigma = np.dot(self.repMatrix[center],self.repMatrix[target])
-        sigma = sc.special.expit(sigma)
+        
+        sigma = sc.special.expit(np.dot(self.repMatrix[center],self.repMatrix[target]))
+        #sigma = sc.special.expit(sigma)
+        
         if mode == 0:
             g = alpha * (1-sigma) * self.repMatrix[target]
             self.repMatrix[center] += g * weight
         else:
             g = -alpha * sigma * self.repMatrix[target]
             self.repMatrix[center] += g * weight
-            
-    
+        
     
      
     def save2File(self):
@@ -319,7 +323,7 @@ class Distributed(object):
         coefficient = self.numUpdates / (self.window * self.timeslot)
         seq = []
         #2.simulate poisson process in every timeslot for each node
-        history = {key:np.random.poisson(coefficient*len(self.graph[key]),self.timeslot) for key in self.graph.keys()}
+        history = {key:self.rd.poisson(coefficient*len(self.graph[key]),self.timeslot) for key in self.graph.keys()}
         #3.calculate final sequence
         for i in range(self.timeslot):
             slot = []
@@ -341,6 +345,7 @@ class Distributed(object):
         process = 0
         sentinel = 0
         alpha = self.alpha
+        print('ratio={}'.format(self.ratio))
         
         for node in seq:
             if process>=sentinel:
@@ -354,20 +359,23 @@ class Distributed(object):
             if self.window*2*self.ratio >primelen:
                 repeat = int(self.window*2*self.ratio/primelen)
                 s = int(self.window*2*self.ratio)%primelen
-                flist =  random.sample(self.graph[node],s)
+                flist =  list(self.rd.choice(self.graph[node],s,False))
                 for _ in range(repeat):
                     flist += self.graph[node]
             else:
-                flist = random.sample(self.graph[node],int(self.window*2*self.ratio))
+                flist = list(self.rd.choice(self.graph[node],int(self.window*2*self.ratio),False))
                 
-            seclist = [random.choice(self.graph[random.choice(self.graph[node])])
+            seclist = [self.rd.choice(self.graph[self.rd.choice(self.graph[node])])
                         for _ in range(int(self.window*2*(1-self.ratio)))]
-            
+                    
             for friend in flist+seclist:
+                if friend==node:
+                    continue
+               
                 self.singleUpdate(node, friend, alpha, 0, 1)
                 
                 #negative sampling
-                seeds = np.random.randint(low=np.iinfo(np.int64).max,size=self.numNegSampling,dtype=np.int64)
+                seeds = self.rd.randint(low=np.iinfo(np.int64).max,size=self.numNegSampling,dtype=np.int64)
                 seeds = seeds%self.maxNegLen
                 for seed in seeds:
                     enemy = self.negSampTable[seed]
