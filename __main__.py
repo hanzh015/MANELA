@@ -33,7 +33,7 @@ def main():
     parser.add_argument('--ratio',type=float,help="the ratio of numbers of 1st and 2nd degree nodes")
     parser.add_argument('--fmax',default=1, type=float,help=
                         "the maximum ratio of # of 1st deg nodes participating updates to the total # of 1st deg nodes, when ratio=0.5")
-    parser.add_argument('-p',help="whether to use poisson process",action="store_true")
+    #parser.add_argument('-p',help="whether to use poisson process",action="store_true")
     parser.add_argument('--window',type=int,help="the update window in poisson update mode")
     parser.add_argument('--timeslot',default=1000,type=int,help="the number of timeslots in order to simulate poisson process")
     parser.add_argument('--seed',default=1,type=int,help="the random seed of a Distributed instance")
@@ -58,7 +58,7 @@ def main():
                   fmax=args.fmax,
                   c=args.c,
                   cpath=args.embpath,
-                  poisson=args.p,
+                  poisson=True,
                   window=args.window,
                   timeslot=args.timeslot,
                   seed=args.seed)
