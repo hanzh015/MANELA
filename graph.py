@@ -64,8 +64,8 @@ class Graph(defaultdict):
 	def make_undirected(self):
 	
 		t0 = time()
-
-		for v in self.keys():
+		keylist = list(self.keys())
+		for v in keylist:
 			for other in self[v]:
 				if v != other:
 					self[other].append(v)
@@ -294,16 +294,17 @@ def load_matfile(file_, variable_name="network", undirected=True):
 
 
 def from_networkx(G_input, undirected=True):
-		G = Graph()
+	G = Graph()
 
-		for idx, x in enumerate(G_input.nodes_iter()):
-				for y in iterkeys(G_input[x]):
-						G[x].append(y)
+	for idx, x in enumerate(G_input.nodes_iter()):
+		for y in iterkeys(G_input[x]):
+			G[x].append(y)
 
-		if undirected:
-				G.make_undirected()
+	if undirected:
+		G.make_undirected()
+		G.make_consistent()
 
-		return G
+	return G
 
 
 def from_numpy(x, undirected=True):

@@ -119,7 +119,7 @@ def main():
 			node_fix = adj[:training_size]
 			node_iter = adj[training_size:]
 			test_label_matrix = numpy.array([[-1]*labels_matrix.shape[1]]*testing_size)
-	
+			
 			y_train = [[] for _ in range(y_train_.shape[0])]
 	
 	
@@ -128,7 +128,7 @@ def main():
 					y_train[i].append(j)
 	
 			assert sum(len(l) for l in y_train) == y_train_.nnz
-	
+			
 			X_test = X[training_size:, :]
 			y_test_ = y[training_size:]
 	
@@ -137,9 +137,11 @@ def main():
 			cy =	y_test_.tocoo()
 			for i, j in zip(cy.row, cy.col):
 					y_test[i].append(j)
-	
+			
+		
 			clf = TopKRanker(LogisticRegression(solver='liblinear'))
 			clf.fit(X_train, y_train_)
+			
 	
 			# find out how many labels should be predicted
 			top_k_list = [len(l) for l in y_test]
@@ -162,7 +164,9 @@ def main():
 				baseline_results[train_percent].append(bresults)
 	
 	try:
+		
 		file = open(args.result,'w')
+		
 		file.write('Results, using embeddings of dimensionality'+str(X.shape[1])+'\n')
 		file.write('-------------------\n')
 		print ('Results, using embeddings of dimensionality', X.shape[1])
@@ -183,7 +187,7 @@ def main():
 			file.write('Average score:' + str(dict(avg_score))+'\n')
 			print ('-------------------')
 			file.write('-------------------\n')
-			
+		
 		#write baseline method result for comparison
 		if args.b:
 			file.write('Results, using embeddings of dimensionality'+str(X.shape[1])+'\n')

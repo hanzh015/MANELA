@@ -2,6 +2,7 @@
 Dec 24th, 2018, author :Han Zhang
 '''
 from numpy import zeros,dot
+from sklearn.metrics import roc_auc_score
 
 def get_recontructed_adj(embeddings):
     node_num = len(embeddings)
@@ -50,7 +51,7 @@ def get_edge_list_from_cn(node_l, ori_graph, threshold=0.0):
     
     return result
 
-def compute_precision_curves(predicted_edge_list, true_graph, max_k=-1):
+def compute_precision_curves(predicted_edge_list, true_graph, max_k=-1, a=False):
     if max_k==-1:
         max_k = len(predicted_edge_list)
     else:
@@ -67,7 +68,16 @@ def compute_precision_curves(predicted_edge_list, true_graph, max_k=-1):
         else:
             delta_factors.append(0.0)
         precision_scores.append(1.0 * correct_edge / (i + 1))
-    return precision_scores, delta_factors
+        
+    '''
+    update Jan 17th, 2019
+    add roc_auc score
+    '''
+    if a:
+        auc = roc_auc_score(delta_factors, precision_scores)
+        return precision_scores, delta_factors, auc
+    else:
+        return precision_scores, delta_factors
     
 
 def compute_map(predicted_edge_list, true_digraph, max_k=-1):
@@ -77,7 +87,7 @@ def compute_map(predicted_edge_list, true_digraph, max_k=-1):
         node_edges.append([])
     for (st, ed, w) in predicted_edge_list:
         node_edges[st].append((st, ed, w))
-        #node_edges[ed].append((ed, st, w))
+        node_edges[ed].append((ed, st, w))
     node_AP = [0.0] * node_num
     count = 0
     for i in range(node_num):

@@ -15,7 +15,7 @@ def rnPredict(x_fix,x_iter,label_fix,label_iter,graph):
 			
 	label_count = 0
 	max_count = label_iter.shape[0] * label_iter.shape[1]
-	thred = 0
+	thred = 1
 	while label_count<max_count:
 		#voting process
 		flag = True

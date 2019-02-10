@@ -145,7 +145,8 @@ class Distributed(object):
         self.expTable = defaultdict(float)
         maxExpValue = 0
         for n in self.repMatrix.keys():
-            currentExp = pow(self.graph.degree(n),0.75)
+            #currentExp = pow(self.graph.degree(n),0.75)
+            currentExp = 1
             maxExpValue += currentExp
             self.expTable[n] = currentExp
         i = 0
@@ -396,6 +397,62 @@ class Distributed(object):
             emb_matrix[node] = self.repMatrix[node]
         
         return emb_matrix
+    
+    def fastTraining(self):
+        seq = self.generatePoisson()
+        updateflowlen = len(seq)*(2*self.window*(self.numNegSampling+1)+1)
+        microlen = 2*self.window*(self.numNegSampling+1)+1
+        
+        upflow = np.zeros(updateflowlen,dtype=np.uint32)
+        seeds = self.rd.randint(low=np.iinfo(np.int64).max,size=2*self.window*self.numNegSampling*len(seq),dtype=np.int64)
+        seeds = seeds%self.maxNegLen
+        sedstart = 0
+        
+        for key,node in enumerate(seq):
+            primelen = len(self.graph[node])
+            if self.window*2*self.ratio >primelen:
+                repeat = int(self.window*2*self.ratio/primelen)
+                s = int(self.window*2*self.ratio)%primelen
+                flist =  list(self.rd.choice(self.graph[node],s,False))
+                for _ in range(repeat):
+                    flist += self.graph[node]
+            else:
+                flist = list(self.rd.choice(self.graph[node],int(self.window*2*self.ratio),False))
+                
+            seclist = [self.rd.choice(self.graph[self.rd.choice(self.graph[node])])
+                        for _ in range(int(self.window*2*(1-self.ratio)))]
+            
+            microflow = np.zeros(microlen,dtype=np.uint32)
+            microflow[0] = node
+            for number,friend in enumerate(flist+seclist):
+                start = number*(self.numNegSampling+1)+1
+                microflow[start] = friend
+                for i in range(self.numNegSampling):
+                    enemy = self.negSampTable[seeds[sedstart]]
+                    sedstart += 1
+                    microflow[start+i+1]=enemy
+            upflow[key*microlen:(key+1)*microlen]=microflow
+            
+        print("training")    
+        #update using the update flow
+        #I hope to have a C extension to do the following
+        central = 0
+        signal = [0]+[1]*self.numNegSampling
+        signal = signal*2*self.window
+        while central < updateflowlen-1:
+            alpha = self.alpha*(1-central/updateflowlen)
+            if alpha < self.alpha * 0.0001:
+                alpha = self.alpha * 0.0001
+                
+            for i in range(microlen-1):
+                self.singleUpdate(upflow[central], upflow[central+i+1], alpha, signal[i], 1)
+                
+            central += microlen
+                
+                
+                
+            
+            
                     
     
     
