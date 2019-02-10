@@ -4,8 +4,8 @@ This repo provides an reference implementation of MANELA simulator. For detailed
 
 ## Organization
 This folder is organized as follows. 
-* baseline\\:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Implementations of baseline methods, including node2vec and relationalneighbors
-* examples\\: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;        Example datasets.
+* baseline:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Implementations of baseline methods, including node2vec and relationalneighbors
+* examples: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;        Example datasets.
 * \_\_main\_\_.py:   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The entrance script for training MANELA embeddings. Specify hyperparameters here and it will call distributed.py.
 * distributed.py:  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  The main implementation module for MANELA simulator.
 * edge_prediction.py: The module for validating link prediction performance.
@@ -63,3 +63,10 @@ The script is invoked directly:
     python visualize.py --ratio 0.75
     
 where --ratio is the r<sub>1</sub> hyperparameter of MANELA.
+
+## Requirements
+* Python3 + Numpy + Scipy
+* networkx < 2.0
+* scikit-learn
+* matplotlib < 3.0 (Please downgrade your matplotlib for visualization module)
+* GEM
