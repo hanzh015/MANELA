@@ -40,6 +40,26 @@ The arguments of scoring module:
 > * **--result**: The path of the report file. By default it will only display results on the screen without saving them to files.
 
 #### Link Prediction
+A typical command to run link prediction on MANELA:
+
+    python edge_prediction.py --input examples\datasets\Homo_sapiens.mat --output examples\results\PPI_link_pred.txt --name manela --v 192 --u 0.4 --round 10 
+    
+For comparison purpose, a more convenient way is to run manela, node2vec and deepwalk on the same network at one time:
+
+    python edge_prediction.py --input examples\datasets\Homo_sapiens.mat --output examples\results\PPI_all_link_pred.txt --all --round 10
+    
+The arguments of this module:
+> * **--input**: The path of the input network.
+> * **--output**: The result file path.
+> * **--name**: The name of the algorithms being used. Can be toggled between [manela, deepwalk, node2vec].
+> * **--round**: The number of runs. Note that we don't provide averged MAP or Precisions over these runs, but report raw data to you.
+> * **--v and --u**: The updates, ratio hyperparameters for manela or p, q hyperparameters for node2vec respectively.
+> * **--all**: When this flag is switched on, ignore '--name' option and execute validations on all three algorithms. The corresponding hyperparameters are preset to be optimal as described in the paper.
 
 
+#### Visualization
+The script is invoked directly:
 
+    python visualize.py --ratio 0.75
+    
+where --ratio is the r<sub>1</sub> hyperparameter of MANELA.
