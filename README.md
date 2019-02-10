@@ -65,8 +65,10 @@ The script is invoked directly:
 where --ratio is the r<sub>1</sub> hyperparameter of MANELA.
 
 ## Requirements
-* Python3 + Numpy + Scipy
-* networkx < 2.0
-* scikit-learn
-* matplotlib < 3.0 (Please downgrade your matplotlib for visualization module)
-* GEM
+* To train MANELA embeddings: Python3 + Numpy + Scipy
+* To run node classification scripts (scoring.py): scikit-learn 
+* To run link prediction scripts (edge_prediction.py) : scikit-learn + networkx < 2.0
+* To run visualization (visualize.py): GEM + matplotlib < 3.0 + networkx < 2.0
+
+## Future Works
+Build a C extension to run MANELA embeddings training.
