@@ -44,14 +44,14 @@ A typical command to run link prediction on MANELA:
 
     python edge_prediction.py --input examples\datasets\Homo_sapiens.mat --output examples\results\PPI_link_pred.txt --name manela --v 192 --u 0.4 --round 10 
     
-For comparison purpose, a more convenient way is to run manela, node2vec and deepwalk on the same network at one time:
+For comparison purpose, a more convenient way is to run manela, [DeepWalk][1]\[1] and [node2vec][2]\[2] on the same network at one time:
 
     python edge_prediction.py --input examples\datasets\Homo_sapiens.mat --output examples\results\PPI_all_link_pred.txt --all --round 10
     
 The arguments of this module:
 > * **--input**: The path of the input network.
 > * **--output**: The result file path.
-> * **--name**: The name of the algorithms being used. Can be toggled between [manela, deepwalk, node2vec].
+> * **--name**: The name of the algorithms being used. Can be toggled between [manela, DeepWalk, node2vec].
 > * **--round**: The number of runs. Note that we don't provide averged MAP or Precisions over these runs, but report raw data to you.
 > * **--v and --u**: The updates, ratio hyperparameters for manela or p, q hyperparameters for node2vec respectively.
 > * **--all**: When this flag is switched on, ignore '--name' option and execute validations on all three algorithms. The corresponding hyperparameters are preset to be optimal as described in the paper.
@@ -68,7 +68,20 @@ where --ratio is the r<sub>1</sub> hyperparameter of MANELA.
 * To train MANELA embeddings: Python3 + Numpy + Scipy
 * To run node classification scripts (scoring.py): scikit-learn 
 * To run link prediction scripts (edge_prediction.py) : scikit-learn + networkx < 2.0
-* To run visualization (visualize.py): GEM + matplotlib < 3.0 + networkx < 2.0
+* To run visualization (visualize.py): [GEM][3]\[3] + matplotlib < 3.0 + networkx < 2.0
 
 ## Future Works
 Build a C extension to run MANELA embeddings training.
+
+## Reference
+[1]: https://github.com/phanein/deepwalk
+[2]: https://github.com/aditya-grover/node2vec
+[3]: https://github.com/palash1992/GEM
+
+\[1\]: Perozzi, Bryan and Al-Rfou, Rami and Skiena, Steven. DeepWalk: Online Learning of Social Representations. In the ACM SIGKDD International Conference onKnowledge Discovery and Data Mining. 701–710.  https://doi.org/10.1145/2623330.2623732
+
+\[2\]: Aditya Grover and Jure Leskovec. 2016. node2vec: Scalable Feature Learning forNetworks. Inthe ACM SIGKDD International Conference on Knowledge Discoveryand Data Mining. 855–864.  https://doi.org/10.1145/2939672.2939754
+
+\[3\]: Palash Goyal and Emilio Ferrara. [n. d.].  GEM: A Python Package for GraphEmbedding Methods.Journal of Open Source Software3, 29 ([n. d.]), 876.  https://doi.org/10.21105/joss.00876
+
+
