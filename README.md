@@ -16,7 +16,7 @@ This folder is organized as follows.
 
 ## Usage
 ### Basic: Training MANELA embeddings.
-A simple example to run \_\_main__.py is as follows. It takes BlogCatalog network as input file, trains embeddings using MANELA algorithm, and save blogcatalog.embeddings as output file. The input file is assumed to be in .mat format. 
+A simple example to run \_\_main__.py is as follows. It takes BlogCatalog network as input file, trains embeddings using MANELA algorithm, and save blogcatalog.embeddings as output file. The input file is assumed to be in .mat format, whereas output files follow the format in Word2vec model of gensim.
 
     python __main__.py --path examples\datasets\blogcatalog.mat --output examples\embeddings\blogcatalog.embeddings --updates 60 --ratio 0.3 --window 10
 The optional arguments specify hyperparameters of MANELA algorithm:
@@ -29,3 +29,17 @@ The optional arguments specify hyperparameters of MANELA algorithm:
 > * **--seed**: Random seed, 0 by default.
 ### Validations: Testing performance in various tasks.
 #### Node Classification
+To score the node classification, run:
+
+    python scoring.py --emb examples\embeddings\blogcatalog.embeddings --network examples\datasets\blogcatalog.mat --result examples\results\blogcatalog.txt --all --num-shuffles 10
+    
+The arguments of scoring module:
+> * **--emb**: The embedding path.
+> * **--network**: The path of the network dataset.
+> * **--num-shuffles**: The number of runs that f1 scores are averaged over.
+> * **--result**: The path of the report file. By default it will only display results on the screen without saving them to files.
+
+#### Link Prediction
+
+
+
