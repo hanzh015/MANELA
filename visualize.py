@@ -7,6 +7,7 @@ import numpy as np
 import graph
 from gensim.models import Word2Vec
 import distributed as ds
+import argparse
 
 from gem.utils      import graph_util, plot_util
 from gem.evaluation import visualize_embedding as viz
@@ -26,6 +27,9 @@ isDirected = True
 #G = G.to_directed()
 G = nx.read_gpickle(file_prefix)
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--ratio',type=float,help="MANELA r_1")
+args = parser.parse_args()
 
 try:
     f = open(path+'sbm_node_labels.pickle', 'rb')
@@ -39,7 +43,7 @@ for idx in range(node_colors.shape[0]):
     
 
 
-models = ['dnela']
+models = ['manela']
 
 for model in models:
     if model=='deepwalk':
@@ -50,7 +54,7 @@ for model in models:
         for key in range(len(gr)):
             emb_matrix[key] = model.wv.get_vector(str(key))
             
-    elif model=='dnela':
+    elif model=='manela':
         gr = graph.from_networkx(G,undirected=True)
         emb = ds.Distributed(gr)
         emb.setArgs(numUpdates=90,
@@ -58,7 +62,7 @@ for model in models:
                     representSize=128,
                     window=10,
                     numNegSampling=5,
-                    ratio=0.5)
+                    ratio=args.ratio)
         emb.process()
         emb_matrix = emb.getEmbeddings()
         
