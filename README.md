@@ -1,4 +1,4 @@
-# MANELA: A Multi-Agent Algorithm for Learning Network Embeddings
+# MANELA
 
 This repo provides an reference implementation of MANELA simulator. For detailed informations, see.
 
@@ -78,10 +78,10 @@ Build a C extension to run MANELA embeddings training.
 [2]: https://github.com/aditya-grover/node2vec
 [3]: https://github.com/palash1992/GEM
 
-\[1\]: Perozzi, Bryan and Al-Rfou, Rami and Skiena, Steven. DeepWalk: Online Learning of Social Representations. In the ACM SIGKDD International Conference onKnowledge Discovery and Data Mining. 701–710.  https://doi.org/10.1145/2623330.2623732
+\[1\]: Perozzi, Bryan and Al-Rfou, Rami and Skiena, Steven. DeepWalk: Online Learning of Social Representations. In the ACM SIGKDD International Conference on Knowledge Discovery and Data Mining. 701–710.  https://doi.org/10.1145/2623330.2623732
 
-\[2\]: Aditya Grover and Jure Leskovec. 2016. node2vec: Scalable Feature Learning forNetworks. Inthe ACM SIGKDD International Conference on Knowledge Discoveryand Data Mining. 855–864.  https://doi.org/10.1145/2939672.2939754
+\[2\]: Aditya Grover and Jure Leskovec. 2016. node2vec: Scalable Feature Learning for Networks. Inthe ACM SIGKDD International Conference on Knowledge Discovery and Data Mining. 855–864.  https://doi.org/10.1145/2939672.2939754
 
-\[3\]: Palash Goyal and Emilio Ferrara. [n. d.].  GEM: A Python Package for GraphEmbedding Methods.Journal of Open Source Software3, 29 ([n. d.]), 876.  https://doi.org/10.21105/joss.00876
+\[3\]: Palash Goyal and Emilio Ferrara. [n. d.].  GEM: A Python Package for Graph Embedding Methods.Journal of Open Source Software3, 29 ([n. d.]), 876.  https://doi.org/10.21105/joss.00876
 
 
